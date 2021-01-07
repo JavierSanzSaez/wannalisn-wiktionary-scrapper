@@ -4,8 +4,8 @@ from wiktionaryparser import WiktionaryParser
 
 
 class Scraper:
-    def __init__(self, site, language):
-        self.site = site  # The page from which get the info
+    def __init__(self, language):
+        self.site = "https://en.wiktionary.org/w/index.php?title=Category:English_idioms&from=Y"  # The page from which get the info
         self.language = language  # The language in which to extract the words
 
     def main(self):
@@ -20,16 +20,17 @@ class Scraper:
                                  'definition:examples'
                                  ])
             for word_pre in result:
-                word = word_pre[0]  # The format of the result from WikiParser is hella weird and has some pesky nested[{}]
-                pronunciation_text = word['pronunciations']['text']  # There may be more than one text pronunciation, we only care for the RP, which is the first one
-                pronunciation_audio_link = word['pronunciations']['audio'][0]  # Idem
-                etymology = word['etymology']
+                word = word_pre[0]  # The format of the result from WikiParser is hella weird and has some
+                                    # pesky nested[{}]
+                pronunciation_text = word['pronunciations']['text']
+                pronunciation_audio_link = word['pronunciations']['audio']
+                etymology = word['etymology'].strip().replace("\n", "")
                 definition_text = word['definitions'][0]['text']
                 examples = []
                 for example in word['definitions'][0]['examples']:
-                    examples.append(example)
-                filewriter.writerow([pronunciation_text,pronunciation_audio_link,etymology,definition_text,examples])
-                print(pronunciation_text, pronunciation_audio_link, etymology, definition_text, examples)
+                    examples.append(example.strip().replace("\n", ""))
+                filewriter.writerow(
+                    [pronunciation_text, pronunciation_audio_link, etymology, definition_text, examples])
         return result
 
     def scrape(self, result, nextsite, count):
@@ -50,13 +51,12 @@ class Scraper:
         try:  # Checks if there is more pages to load
             link = page.find(string="next page").parent.get('href')
             count += 1
-            next_link = "https://en.wiktionary.org"+link
+            next_link = "https://en.wiktionary.org" + link
             self.scrape(result, next_link, count)
         except:
             print("End")
             return result
 
 
-site = "https://en.wiktionary.org/w/index.php?title=Category:English_idioms&from=Y"
 language = "english"
-Scraper(site, language).main()
+Scraper(language).main()
