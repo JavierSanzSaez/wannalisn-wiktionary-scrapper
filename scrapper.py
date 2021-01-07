@@ -5,7 +5,7 @@ from wiktionaryparser import WiktionaryParser
 
 class Scraper:
     def __init__(self, language):
-        self.site = "https://en.wiktionary.org/w/index.php?title=Category:English_idioms&from=Y"  # The page from which get the info
+        self.site = "https://en.wiktionary.org/w/index.php?title=Category:English_idioms&from=0"  # The page from which get the info
         self.language = language  # The language in which to extract the words
 
     def main(self):
@@ -46,6 +46,7 @@ class Scraper:
             for item in category.find_all("li"):
                 entry = item.get_text()
                 wikentry = wikparser.fetch(entry, self.language)
+                print(wikentry)
                 result.append(wikentry)
         page = soup.find(id="mw-pages")
         try:  # Checks if there is more pages to load
