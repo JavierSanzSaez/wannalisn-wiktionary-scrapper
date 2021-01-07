@@ -11,8 +11,25 @@ class Scraper:
     def main(self):
         result = []
         result = self.scrape(result, self.site, 1)
-        item = result[0][0]
-        print(item['etymology'])
+        with open('english_idioms.csv', 'w') as csvfile:
+            filewriter = csv.writer(csvfile, delimiter=',')
+            filewriter.writerow(['pronunciation:text',
+                                 'pronunciation:audio (link)',
+                                 'etymology',
+                                 'definition:text',
+                                 'definition:examples'
+                                 ])
+            for word_pre in result:
+                word = word_pre[0]  # The format of the result from WikiParser is hella weird and has some pesky nested[{}]
+                pronunciation_text = word['pronunciations']['text']  # There may be more than one text pronunciation, we only care for the RP, which is the first one
+                pronunciation_audio_link = word['pronunciations']['audio'][0]  # Idem
+                etymology = word['etymology']
+                definition_text = word['definitions'][0]['text']
+                examples = []
+                for example in word['definitions'][0]['examples']:
+                    examples.append(example)
+                filewriter.writerow([pronunciation_text,pronunciation_audio_link,etymology,definition_text,examples])
+                print(pronunciation_text, pronunciation_audio_link, etymology, definition_text, examples)
         return result
 
     def scrape(self, result, nextsite, count):
