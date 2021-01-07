@@ -1,47 +1,45 @@
-import urllib.request
+import urllib.request, csv
 from bs4 import BeautifulSoup
+from wiktionaryparser import WiktionaryParser
 
 
 class Scraper:
-    def __init__(self, site, language, number, letter):
+    def __init__(self, site, language):
         self.site = site  # The page from which get the info
         self.language = language  # The language in which to extract the words
-        self.number = number  # The maximum number of words to extract
-        self.letter = letter  # The letter from which to start the scrapping
 
-    def create_index(self):
-        # Returns a dictionary that serves as an search index
+    def main(self):
+        result = []
+        result = self.scrape(result, self.site, 1)
+        item = result[0][0]
+        print(item['etymology'])
+        return result
 
-        r = urllib.request.urlopen(self.site)  # Get the page
-        html = r.read()  # Transform the page into an html doc
-        parser = "html.parser"
-        soup = BeautifulSoup(html, parser)
+    def scrape(self, result, nextsite, count):
+        print("Iteration " + str(count) + "/41")
+        wikparser = WiktionaryParser()
 
-        table_head = soup.find(summary="Contents")
-        index = {}
-        for link in table_head.td.find_all('a'):  # Looks for the first td found
-            initial = link.string
-            href = link.get('href')
-            index.update({initial: href})
-        return index
-
-    def scrape(self):
-        index = self.create_index()  # Get the search index
-        start_point = index[self.letter]
-
-        start_r = urllib.request.urlopen(start_point)
+        start_r = urllib.request.urlopen(nextsite)
         html = start_r.read()
         parser = "html.parser"
         soup = BeautifulSoup(html, parser)
-        page = soup.find_all(class_="mw-category-group")  # Returns a list of the categories
+        categories = soup.find_all(class_="mw-category-group")  # Returns a list of the categories
+        for category in categories:
+            for item in category.find_all("li"):
+                entry = item.get_text()
+                wikentry = wikparser.fetch(entry, self.language)
+                result.append(wikentry)
+        page = soup.find(id="mw-pages")
+        try:  # Checks if there is more pages to load
+            link = page.find(string="next page").parent.get('href')
+            count += 1
+            next_link = "https://en.wiktionary.org"+link
+            self.scrape(result, next_link, count)
+        except:
+            print("End")
+            return result
 
-        count = 0
-        for category in page:
-            pass  # TODO Iterate and get the words
 
-
-site = "https://en.wiktionary.org/w/index.php?title=Category:English_idioms"
+site = "https://en.wiktionary.org/w/index.php?title=Category:English_idioms&from=Y"
 language = "english"
-number = 200
-letter = 'Y'
-Scraper(site, language, number, letter).scrape()
+Scraper(site, language).main()
