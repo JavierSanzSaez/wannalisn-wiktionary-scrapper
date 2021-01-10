@@ -9,32 +9,49 @@ class Scraper:
         self.language = language  # The language in which to extract the words
 
     def main(self):
-        result = []
-        result = self.scrape(result, self.site, 1)
+        initial = []
+        result = self.scrape(initial, self.site, 1)
         with open('english_idioms.csv', 'w') as csvfile:
             filewriter = csv.writer(csvfile, delimiter=',')
-            filewriter.writerow(['pronunciation:text',
+            filewriter.writerow(['link',
+                                 'pronunciation:text',
                                  'pronunciation:audio (link)',
                                  'etymology',
                                  'definition:text',
                                  'definition:examples'
                                  ])
             for word_pre in result:
-                word = word_pre[0]  # The format of the result from WikiParser is hella weird and has some
-                                    # pesky nested[{}]
+                link = word_pre[0]
+                # An empty list has falsiness
+                try:
+                    word = word_pre[1][0]  # The format of the result from WikiParser is hella weird and has some
+                # pesky nested[{}]
+                except Exception as e:
+                    print("Line not included due to ", str(e))
+                    continue
                 pronunciation_text = word['pronunciations']['text']
                 pronunciation_audio_link = word['pronunciations']['audio']
                 etymology = word['etymology'].strip().replace("\n", "")
-                definition_text = word['definitions'][0]['text']
+                # Wiktionary entries are not 100% filled, so we have to deal with some nulls
+                try:
+                    definition_text = word['definitions'][0]['text']
+                except:
+                    definition_text = ""
                 examples = []
-                for example in word['definitions'][0]['examples']:
-                    examples.append(example.strip().replace("\n", ""))
+                try:
+                    for example in word['definitions'][0]['examples']:
+                        examples.append(example.strip().replace("\n", ""))
+                except:
+                    examples = []
                 filewriter.writerow(
-                    [pronunciation_text, pronunciation_audio_link, etymology, definition_text, examples])
-        return result
+                    [link, pronunciation_text, pronunciation_audio_link, etymology, definition_text, examples])
+        print("All done!")
 
     def scrape(self, result, nextsite, count):
+        if nextsite == "":
+            return result
         print("Iteration " + str(count) + "/41")
+        newresult = result
         wikparser = WiktionaryParser()
 
         start_r = urllib.request.urlopen(nextsite)
@@ -43,20 +60,26 @@ class Scraper:
         soup = BeautifulSoup(html, parser)
         categories = soup.find_all(class_="mw-category-group")  # Returns a list of the categories
         for category in categories:
+            second_count = 0
             for item in category.find_all("li"):
+                print("Progress: " + str(int(second_count/len(category.find_all('li'))*100)) + "%", end='\r')
+                link = "https://en.wiktionary.org" + item.a['href']
                 entry = item.get_text()
-                wikentry = wikparser.fetch(entry, self.language)
-                print(wikentry)
-                result.append(wikentry)
-        page = soup.find(id="mw-pages")
+                try:
+                    wikentry = wikparser.fetch(entry, self.language)
+                except:
+                    print("fail: ", entry)
+                    continue
+                newresult.append([link, wikentry])
+                second_count += 1
         try:  # Checks if there is more pages to load
+            page = soup.find(id="mw-pages")
             link = page.find(string="next page").parent.get('href')
-            count += 1
-            next_link = "https://en.wiktionary.org" + link
-            self.scrape(result, next_link, count)
-        except:
-            print("End")
-            return result
+            link = "https://en.wiktionary.org" + link
+        except Exception as e:
+            link = ""
+        count += 1
+        return self.scrape(newresult, link, count)
 
 
 language = "english"
