@@ -1,4 +1,5 @@
-import requests
+import requests, time
+from multiprocessing import Pool
 
 BASE_VIDEO_URL = 'http://du9ufcmxxlip6.cloudfront.net/clips/'
 
@@ -15,28 +16,30 @@ class VideoChecker:
                   'path': 'content/1word/basiclevel1/at/testmeaning/fast'},
                  {'id': '59fc515a-175b-44ff-9998-8f9d52e2accf',
                   'url': 'content/start/testdictation/musthavehappened2.mp4',
-                  'path': 'content/start/testdictation/musthavehappened2'}, ]
+                  'path': 'content/start/testdictation/musthavehappened2'},
+                 {'id': '59fc515a-175b-44ff-9998-8f9d52e2accf',
+                  'url': 'content/start/testdictation/unexistent.mp4',
+                  'path': 'content/start/testdictation/unexistent'},
+                 ]
         # TODO: clips should be a query to the database + some processing to transform it into a dictionary
         return clips
 
-    def check_videos(self, clips):
-        success = []
-        failures = []
-        for clip in clips:
-            url = self.url + clip['url']
-            r = requests.get(url)
-            if r.status_code == 200:
-                success.append(clip)
-            else:
-                failures.append(clip)
-        return success, failures
+    def check_videos(self, clip):
+        url = self.url + clip['url']
+        r = requests.get(url)
+        if r.status_code == 200:
+            result = 'Success'
+        else:
+            result = 'Failure'
+        return [url, ''.join(result)]
 
     def main(self):
+        start_time = time.time()
         clips = self.get_clips()
-        success, failures = self.check_videos(clips)
-        print(success)
-        print(failures)
-        return 0
+        with Pool(5) as p:
+            print(p.map(self.check_videos, clips))
+        return time.time()-start_time
 
 
 videochecker = VideoChecker().main()
+print(videochecker)
