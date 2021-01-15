@@ -37,8 +37,14 @@ class VideoChecker:
             result = 'Success'
         else:
             result = 'Failure'
-            print(url)
         return {'id': id, 'name': name, 'url': url, 'result': result}
+
+    def create_result(self, clips):
+        with open('videos_not_hosted.csv', 'w') as csvfile:
+            filewriter = csv.writer(csvfile, delimiter=',')
+            filewriter.writerow(['id', 'name', 'url'])
+            for clip in clips:
+                filewriter.writerow([clip['id'], clip['name'], clip['url']])
 
     def main(self):
         print("Starting process")
@@ -51,27 +57,24 @@ class VideoChecker:
         for batch in clips:
             count += 1
             print("Batch %s of %s" % (count, max_count))
-            with mp.Pool(8) as p:  # Multithreading with 5 simultaneous processes
+            with mp.Pool(3) as p:  # Multithreading with 5 simultaneous processes
                 clip_map = p.map(self.check_videos, batch)
+            for clip in clip_map:
+                if clip['result'] == "Failure":
+                    failures.append(clip)
             time.sleep(1)  # 0.5 secs to wait to give the server some time to breathe
             print("Sleep done")
             if count % 20 == 0:
                 time.sleep(2)
                 print("Extra two seconds to avoid connection kicking")
         print("Requests made")
-        for clip in clip_map:
-            if clip['result'] == "Failure":
-                failures.append(clip)
         print("Failures checked")
+        self.create_result(failures)
+        print("Failures imported into CSV: 'videos_not_hosted.csv'")
         print("Time elapsed: %s secs" % str(time.time() - start_time))
-        return failures
 
 
 if __name__ == '__main__':
     mp.set_start_method('spawn')
-    failures = VideoChecker().main()
-    if not failures:
-        print("Every clip has video hosted!")
-    else:
-        print("These are the clips without video hosted")
-        print(failures)
+    VideoChecker().main()
+
